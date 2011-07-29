@@ -58,6 +58,14 @@ class OdnoklassnikiOAuth2(BaseOAuth2):
         data = {'access_token': access_token, 'method': 'users.getCurrentUser'}
         return odnoklassniki_api(data)
 
+    @classmethod
+    def enabled(cls):
+        """Return backend enabled status by checking basic settings"""
+        return all(hasattr(settings, name) for name in
+                        (cls.SETTINGS_KEY_NAME,
+                         cls.SETTINGS_SECRET_NAME))
+
+
 def odnoklassniki_sig(data):
     """ Calculates signature of request data
         access_token value must be included """

@@ -66,7 +66,10 @@ class LinkedinAuth(ConsumerBasedOAuth):
 
     @classmethod
     def enabled(cls):
-        return True
+        """Return backend enabled status by checking basic settings"""
+        return all(hasattr(settings, name) for name in
+                        (cls.SETTINGS_KEY_NAME,
+                         cls.SETTINGS_SECRET_NAME))
 
 
 def to_dict(xml):

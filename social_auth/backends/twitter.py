@@ -40,6 +40,7 @@ class TwitterBackend(OAuthBackend):
                 'last_name': ''}
 
 
+from django.conf import settings
 class TwitterAuth(ConsumerBasedOAuth):
     """Twitter OAuth authentication mechanism"""
     AUTHORIZATION_URL = TWITTER_AUTHORIZATION_URL
@@ -58,6 +59,13 @@ class TwitterAuth(ConsumerBasedOAuth):
             return simplejson.loads(json)
         except ValueError:
             return None
+
+    @classmethod
+    def enabled(cls):
+        """Return backend enabled status by checking basic settings"""
+        return all(hasattr(settings, name) for name in
+                        (cls.SETTINGS_KEY_NAME,
+                         cls.SETTINGS_SECRET_NAME))
 
 
 # Backend definition

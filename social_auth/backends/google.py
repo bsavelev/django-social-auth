@@ -153,6 +153,14 @@ class GoogleOAuth2(BaseOAuth2):
         data = {'oauth_token': access_token, 'alt': 'json'}
         return googleapis_email(GOOGLEAPIS_EMAIL, urlencode(data))
 
+    @classmethod
+    def enabled(cls):
+        """Return backend enabled status by checking basic settings"""
+        return all(hasattr(settings, name) for name in
+                        (cls.SETTINGS_KEY_NAME,
+                         cls.SETTINGS_SECRET_NAME))
+
+
 
 def googleapis_email(url, params):
     """Loads user data from googleapis service, only email so far as it's

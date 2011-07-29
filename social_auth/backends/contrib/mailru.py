@@ -68,6 +68,14 @@ class MailruOAuth2(BaseOAuth2):
         data = {'method': 'users.getInfo', 'session_key': access_token}
         return mailru_api(data)[0]
 
+    @classmethod
+    def enabled(cls):
+        """Return backend enabled status by checking basic settings"""
+        return all(hasattr(settings, name) for name in
+                        (cls.SETTINGS_KEY_NAME,
+                         cls.SETTINGS_SECRET_NAME))
+
+
 def mailru_sig(data):
     """ Calculates signature of request data """
     
