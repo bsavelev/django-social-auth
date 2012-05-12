@@ -3,7 +3,7 @@ Twitter OAuth support.
 
 This adds support for Twitter OAuth service. An application must
 be registered first on twitter and the settings TWITTER_CONSUMER_KEY
-and TWITTER_CONSUMER_SECRET must be defined with they corresponding
+and TWITTER_CONSUMER_SECRET must be defined with the corresponding
 values.
 
 User screen name is used to generate username.
@@ -14,6 +14,7 @@ class for details on how to extend it.
 from django.utils import simplejson
 
 from social_auth.backends import ConsumerBasedOAuth, OAuthBackend, USERNAME
+from social_auth.backends.exceptions import AuthCanceled
 
 
 # Twitter configuration
@@ -33,11 +34,30 @@ class TwitterBackend(OAuthBackend):
 
     def get_user_details(self, response):
         """Return user details from Twitter account"""
+        try:
+            first_name, last_name = response['name'].split(' ', 1)
+        except:
+            first_name = response['name']
+            last_name = ''
         return {USERNAME: response['screen_name'],
                 'email': '',  # not supplied
                 'fullname': response['name'],
-                'first_name': response['name'],
-                'last_name': ''}
+                'first_name': first_name,
+                'last_name': last_name}
+
+    @classmethod
+    def tokens(cls, instance):
+        """Return the tokens needed to authenticate the access to any API the
+        service might provide. Twitter uses a pair of OAuthToken consisting of
+        an oauth_token and oauth_token_secret.
+
+        instance must be a UserSocialAuth instance.
+        """
+        token = super(TwitterBackend, cls).tokens(instance)
+        if token and 'access_token' in token:
+            token = dict(tok.split('=')
+                            for tok in token['access_token'].split('&'))
+        return token
 
 
 from django.conf import settings
@@ -51,7 +71,7 @@ class TwitterAuth(ConsumerBasedOAuth):
     SETTINGS_KEY_NAME = 'TWITTER_CONSUMER_KEY'
     SETTINGS_SECRET_NAME = 'TWITTER_CONSUMER_SECRET'
 
-    def user_data(self, access_token):
+    def user_data(self, access_token, *args, **kwargs):
         """Return user data provided"""
         request = self.oauth_request(access_token, TWITTER_CHECK_AUTH)
         json = self.fetch_response(request)
@@ -66,6 +86,13 @@ class TwitterAuth(ConsumerBasedOAuth):
         return all(hasattr(settings, name) for name in
                         (cls.SETTINGS_KEY_NAME,
                          cls.SETTINGS_SECRET_NAME))
+
+    def auth_complete(self, *args, **kwargs):
+        """Completes login process, must return user instance"""
+        if 'denied' in self.data:
+            raise AuthCanceled(self)
+        else:
+            return super(TwitterAuth, self).auth_complete(*args, **kwargs)
 
 
 # Backend definition

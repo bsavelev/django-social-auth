@@ -4,9 +4,11 @@ FACEBOOK_APP_ID                   = ''
 FACEBOOK_API_SECRET               = ''
 LINKEDIN_CONSUMER_KEY             = ''
 LINKEDIN_CONSUMER_SECRET          = ''
+SKYROCK_CONSUMER_KEY              = ''
+SKYROCK_CONSUMER_SECRET           = ''
 ORKUT_CONSUMER_KEY                = ''
 ORKUT_CONSUMER_SECRET             = ''
-GOOGLE_OAUTH2_CLIENT_KEY          = ''
+GOOGLE_OAUTH2_CLIENT_ID           = ''
 GOOGLE_OAUTH2_CLIENT_SECRET       = ''
 SOCIAL_AUTH_CREATE_USERS          = True
 SOCIAL_AUTH_FORCE_RANDOM_USERNAME = False
@@ -27,3 +29,29 @@ MAILRU_OAUTH2_APP_KEY      		  = ''
 MAILRU_OAUTH2_CLIENT_SECRET       = ''
 #SOCIAL_AUTH_USER_MODEL            = 'app.CustomUser'
 SOCIAL_AUTH_ERROR_KEY             = 'socialauth_error'
+GITHUB_APP_ID                     = ''
+GITHUB_API_SECRET                 = ''
+FOURSQUARE_CONSUMER_KEY           = ''
+FOURSQUARE_CONSUMER_SECRET        = ''
+YANDEX_OAUTH2_CLIENT_KEY          = ''
+YANDEX_OAUTH2_CLIENT_SECRET       = ''
+YANDEX_OAUTH2_API_URL             = 'https://api-yaru.yandex.ru/me/' # http://api.moikrug.ru/v1/my/ for Moi Krug
+
+# Backward compatibility
+YANDEX_APP_ID = YANDEX_OAUTH2_CLIENT_KEY
+YANDEX_API_SECRET = YANDEX_OAUTH2_CLIENT_SECRET
+
+VK_APP_ID = VKONTAKTE_APP_ID
+VK_API_SECRET = VKONTAKTE_APP_SECRET
+
+SOCIAL_AUTH_PIPELINE = (
+    'social_auth.backends.pipeline.social.social_auth_user',
+    'social_auth.backends.pipeline.associate.associate_by_email',
+    'social_auth.backends.pipeline.misc.save_status_to_session',
+    'app.pipeline.redirect_to_form',
+    'app.pipeline.username',
+    'social_auth.backends.pipeline.user.create_user',
+    'social_auth.backends.pipeline.social.associate_user',
+    'social_auth.backends.pipeline.social.load_extra_data',
+    'social_auth.backends.pipeline.user.update_user_details',
+)

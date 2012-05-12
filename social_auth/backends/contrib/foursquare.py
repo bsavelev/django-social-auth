@@ -20,7 +20,7 @@ class FoursquareBackend(OAuthBackend):
     def get_user_details(self, response):
         """Return user details from Foursquare account"""
         firstName = response['response']['user']['firstName']
-        lastName = response['response']['user']['lastName']
+        lastName = response['response']['user'].get('lastName', '')
         email = response['response']['user']['contact']['email']
 
         return {USERNAME: firstName + ' ' + lastName,
@@ -39,9 +39,9 @@ class FoursquareAuth(BaseOAuth2):
     SETTINGS_KEY_NAME = 'FOURSQUARE_CONSUMER_KEY'
     SETTINGS_SECRET_NAME = 'FOURSQUARE_CONSUMER_SECRET'
 
-    def user_data(self, access_token):
+    def user_data(self, access_token, *args, **kwargs):
         """Loads user data from service"""
-        params = {'oauth_token': access_token,}
+        params = {'oauth_token': access_token}
         url = FOURSQUARE_CHECK_AUTH + '?' + urllib.urlencode(params)
         try:
             return simplejson.load(urllib.urlopen(url))

@@ -6,9 +6,9 @@ No extra configurations are needed to make this work.
 from xml.etree import ElementTree
 from xml.parsers.expat import ExpatError
 
-from django.conf import settings
-
+from social_auth.utils import setting
 from social_auth.backends import ConsumerBasedOAuth, OAuthBackend, USERNAME
+from social_auth.backends.exceptions import AuthCanceled, AuthUnknownError
 
 
 LINKEDIN_SERVER = 'linkedin.com'
@@ -51,11 +51,10 @@ class LinkedinAuth(ConsumerBasedOAuth):
     SETTINGS_KEY_NAME = 'LINKEDIN_CONSUMER_KEY'
     SETTINGS_SECRET_NAME = 'LINKEDIN_CONSUMER_SECRET'
 
-    def user_data(self, access_token):
+    def user_data(self, access_token, *args, **kwargs):
         """Return user data provided"""
         fields_selectors = LINKEDIN_FIELD_SELECTORS + \
-                           getattr(settings, 'LINKEDIN_EXTRA_FIELD_SELECTORS',
-                                   [])
+                           setting('LINKEDIN_EXTRA_FIELD_SELECTORS', [])
         url = LINKEDIN_CHECK_AUTH + ':(%s)' % ','.join(fields_selectors)
         request = self.oauth_request(access_token, url)
         raw_xml = self.fetch_response(request)
@@ -70,6 +69,17 @@ class LinkedinAuth(ConsumerBasedOAuth):
         return all(hasattr(settings, name) for name in
                         (cls.SETTINGS_KEY_NAME,
                          cls.SETTINGS_SECRET_NAME))
+
+    def auth_complete(self, *args, **kwargs):
+        """Complete auth process. Check LinkedIn error response."""
+        oauth_problem = self.request.GET.get('oauth_problem')
+        if oauth_problem:
+            if oauth_problem == 'user_refused':
+                raise AuthCanceled(self, '')
+            else:
+                raise AuthUnknownError(self, 'LinkedIn error was %s' % \
+                                                    oauth_problem)
+        return super(LinkedinAuth, self).auth_complete(*args, **kwargs)
 
 
 def to_dict(xml):

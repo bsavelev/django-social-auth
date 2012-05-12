@@ -1,100 +1,102 @@
+# -*- coding: utf-8 -*-
 """
 VKontakte OpenAPI and OAuth 2.0 support.
 
-This contribution adds support for VKontakte OpenAPI and OAuth 2.0 service in the form
-www.vkontakte.ru. Username is retrieved from the identity returned by server.
+This contribution adds support for VKontakte OpenAPI and OAuth 2.0 service in
+the form www.vkontakte.ru. Username is retrieved from the identity returned by
+server.
 """
 
-from django.conf import settings
 from django.contrib.auth import authenticate
 from django.utils import simplejson
 
-from urllib import urlencode, unquote
-from urllib2 import Request, urlopen, HTTPError
+from urllib import urlencode
+from urllib2 import urlopen
 from hashlib import md5
 from time import time
 
-from social_auth.backends import SocialAuthBackend, OAuthBackend, BaseAuth, BaseOAuth2, USERNAME
+from social_auth.backends import SocialAuthBackend, OAuthBackend, BaseAuth, \
+                                 BaseOAuth2, USERNAME
+from social_auth.utils import setting, log
 
-VKONTAKTE_API_URL       = 'https://api.vkontakte.ru/method/'
-VKONTAKTE_OAUTH2_SCOPE  = [''] # Enough for authentication
 
-EXPIRES_NAME = getattr(settings, 'SOCIAL_AUTH_EXPIRATION', 'expires')
-USE_APP_AUTH = getattr(settings, 'VKONTAKTE_APP_AUTH', False)
-LOCAL_HTML = getattr(settings, 'VKONTAKTE_LOCAL_HTML', 'vkontakte.html')
+# Vkontakte configuration
+VK_AUTHORIZATION_URL = 'http://oauth.vk.com/authorize'
+VK_ACCESS_TOKEN_URL = 'https://oauth.vk.com/access_token'
+VK_SERVER = 'vk.com'
+VK_DEFAULT_DATA = ['first_name', 'last_name', 'screen_name',
+                   'nickname', 'photo']
+
+VKONTAKTE_API_URL = 'https://api.vkontakte.ru/method/'
+VKONTAKTE_SERVER_API_URL = 'http://api.vkontakte.ru/api.php'
+VKONTAKTE_API_VERSION = '3.0'
+
+USE_APP_AUTH = setting('VKONTAKTE_APP_AUTH', False)
+LOCAL_HTML = setting('VKONTAKTE_LOCAL_HTML', 'vkontakte.html')
+
 
 class VKontakteBackend(SocialAuthBackend):
-    """VKontakte authentication backend"""
+    """VKontakte OpenAPI authentication backend"""
     name = 'vkontakte'
 
     def get_user_id(self, details, response):
         """Return user unique id provided by VKontakte"""
-        return int(response.GET['id'])
-    
+        return response.GET['id']
+
     def get_user_details(self, response):
         """Return user details from VKontakte request"""
-        nickname = unquote(response.GET['nickname'])
-        values = { USERNAME: response.GET['id'] if len(nickname) == 0 else nickname, 'email': '', 'fullname': '',
-                  'first_name': unquote(response.GET['first_name']), 'last_name': unquote(response.GET['last_name'])}
-        return values
-
-
-class VKontakteOAuth2Backend(OAuthBackend):
-    """VKontakteOAuth2 authentication backend"""
-    name = 'vkontakte-oauth2'
-    EXTRA_DATA = [('expires_in', EXPIRES_NAME)]
-
-    def get_user_id(self, details, response):
-        """Return user unique id provided by VKontakte"""
-        return int(response['user_id'])
-    
-    def get_user_details(self, response):
-        """Return user details from VKontakte request"""
-        values = { USERNAME: str(response['user_id']), 'email': '', 'fullname': unquote(response['response']['user_name']),
-                  'first_name': '', 'last_name': ''}
-        
-        if ' ' in values['fullname']:
-            values['first_name'], values['last_name'] = values['fullname'].split()
-        else:
-            values['first_name'] = values['fullname']
-            
-        return values
+        nickname = response.GET['nickname']
+        return {
+            USERNAME: response.GET['id'] if len(nickname) == 0 else nickname,
+            'email': '',
+            'fullname': '',
+            'first_name': response.GET['first_name'],
+            'last_name': response.GET['last_name']
+        }
 
 
 class VKontakteAuth(BaseAuth):
     """VKontakte OpenAPI authorization mechanism"""
     AUTH_BACKEND = VKontakteBackend
-    APP_ID = settings.VKONTAKTE_APP_ID
-    
+    APP_ID = setting('VKONTAKTE_APP_ID')
+
     def auth_html(self):
-        """Returns local VK authentication page, not necessary for VK to authenticate """
-        from django.core.urlresolvers import reverse
+        """Returns local VK authentication page, not necessary for
+        VK to authenticate.
+        """
         from django.template import RequestContext, loader
-        
-        dict = { 'VK_APP_ID'      : self.APP_ID,
-                 'VK_COMPLETE_URL': reverse(settings.SOCIAL_AUTH_COMPLETE_URL_NAME, args=[VKontakteBackend.name]) }
-        
+
+        dict = {'VK_APP_ID': self.APP_ID,
+                'VK_COMPLETE_URL': self.redirect}
+
         vk_template = loader.get_template(LOCAL_HTML)
         context = RequestContext(self.request, dict)
-    
+
         return vk_template.render(context)
-        
+
     def auth_complete(self, *args, **kwargs):
-        """Performs check of authentication in VKontakte, returns User if succeeded"""
+        """Performs check of authentication in VKontakte, returns User if
+        succeeded"""
         app_cookie = 'vk_app_' + self.APP_ID
-        
-        if not 'id' in self.request.GET or not app_cookie in self.request.COOKIES:
+
+        if not 'id' in self.request.GET or \
+           not app_cookie in self.request.COOKIES:
             raise ValueError('VKontakte authentication is not completed')
-        
-        cookie_dict = dict(item.split('=') for item in self.request.COOKIES[app_cookie].split('&'))
-        check_str = ''.join([item + '=' + cookie_dict[item] for item in ['expire', 'mid', 'secret', 'sid']])
-        
-        hash = md5(check_str + settings.VKONTAKTE_APP_SECRET).hexdigest()
-        
-        if hash != cookie_dict['sig'] or int(cookie_dict['expire']) < time() :
-            raise ValueError('VKontakte authentication failed: invalid hash')       
+
+        cookie_dict = dict(item.split('=') for item in
+                                self.request.COOKIES[app_cookie].split('&'))
+        check_str = ''.join(item + '=' + cookie_dict[item]
+                                for item in ['expire', 'mid', 'secret', 'sid'])
+
+        hash = md5(check_str + setting('VKONTAKTE_APP_SECRET')).hexdigest()
+
+        if hash != cookie_dict['sig'] or int(cookie_dict['expire']) < time():
+            raise ValueError('VKontakte authentication failed: invalid hash')
         else:
-            kwargs.update({'response': self.request, self.AUTH_BACKEND.name: True})
+            kwargs.update({
+                'response': self.request,
+                self.AUTH_BACKEND.name: True
+            })
             return authenticate(*args, **kwargs)
 
     @property
@@ -104,17 +106,64 @@ class VKontakteAuth(BaseAuth):
         Their current implementation is just an example"""
         return False
 
-    
+
+class VKontakteOAuth2Backend(OAuthBackend):
+    """VKontakteOAuth2 authentication backend"""
+    name = 'vkontakte-oauth2'
+
+    EXTRA_DATA = [
+        ('id', 'id'),
+        ('expires', setting('SOCIAL_AUTH_EXPIRATION', 'expires'))
+    ]
+
+    def get_user_id(self, details, response):
+        """OAuth providers return an unique user id in response"""
+        return response['user_id']
+
+    def get_user_details(self, response):
+        """Return user details from Vkontakte account"""
+        return {
+            USERNAME: response.get('screen_name'),
+            'email':  '',
+            'first_name': response.get('first_name'),
+            'last_name': response.get('last_name')
+        }
+
+
 class VKontakteOAuth2(BaseOAuth2):
-    """VKontakte OAuth2 support"""
+    """Vkontakte OAuth mechanism"""
+    AUTHORIZATION_URL = VK_AUTHORIZATION_URL
+    ACCESS_TOKEN_URL = VK_ACCESS_TOKEN_URL
+    SERVER_URL = VK_SERVER
     AUTH_BACKEND = VKontakteOAuth2Backend
-    AUTHORIZATION_URL = 'http://api.vkontakte.ru/oauth/authorize'
-    ACCESS_TOKEN_URL = ' https://api.vkontakte.ru/oauth/access_token'
-    SETTINGS_KEY_NAME = 'VKONTAKTE_APP_ID'
-    SETTINGS_SECRET_NAME = 'VKONTAKTE_APP_SECRET'
+    SETTINGS_KEY_NAME = 'VK_APP_ID'
+    SETTINGS_SECRET_NAME = 'VK_API_SECRET'
+    # Look at:
+    # http://vk.com/developers.php?oid=-17680044&p=Application_Access_Rights
+    SCOPE_VAR_NAME = 'VK_EXTRA_SCOPE'
 
     def get_scope(self):
-        return VKONTAKTE_OAUTH2_SCOPE + getattr(settings, 'VKONTAKTE_OAUTH2_EXTRA_SCOPE', [])
+        return setting(VKontakteOAuth2.SCOPE_VAR_NAME) or \
+               setting('VKONTAKTE_OAUTH2_EXTRA_SCOPE')
+
+    def user_data(self, access_token, response, *args, **kwargs):
+        """Loads user data from service"""
+        fields = ','.join(VK_DEFAULT_DATA + setting('VK_EXTRA_DATA', []))
+        params = {'access_token': access_token,
+                  'fields': fields,
+                  'uids': response.get('user_id')}
+
+        data = vkontakte_api('users.get', params)
+
+        if data:
+            data = data.get('response')[0]
+            data['user_photo'] = data.get('photo')  # Backward compatibility
+
+        return data
+
+
+class VKontakteAppAuth(VKontakteOAuth2):
+    """VKontakte Application Authentication support"""
 
     def auth_complete(self, *args, **kwargs):
         if USE_APP_AUTH:
@@ -126,75 +175,109 @@ class VKontakteOAuth2(BaseOAuth2):
             if stop:
                 return None
 
-        try:
-            auth_result = super(VKontakteOAuth2, self).auth_complete(*args, **kwargs)
-        except HTTPError: # VKontakte returns HTTPError 400 if cancelled
-            raise ValueError('Authentication cancelled')
+        return super(VKontakteAppAuth, self).auth_complete(*args, **kwargs)
 
-        return auth_result
+    def user_profile(self, user_id, access_token=None):
+        data = {'uids': user_id, 'fields': 'photo'}
 
-    def user_data(self, access_token):
-        """Return user data from VKontakte API"""
-        data = {'access_token': access_token }
-        
-        return vkontakte_api('getUserInfoEx', data)
+        if access_token:
+            data['access_token'] = access_token
 
-    def is_app_user(self, access_token):
-        """Returs app usage flag from VKontakte API"""
-        data = {'access_token': access_token }
+        profiles = vkontakte_api('getProfiles', data).get('response', None)
 
-        return vkontakte_api('isAppUser', data)['response']
+        return profiles[0] if profiles else None
+
+    def is_app_user(self, user_id, access_token=None):
+        """Returns app usage flag from VKontakte API"""
+
+        data = {'uid': user_id}
+
+        if access_token:
+            data['access_token'] = access_token
+
+        return vkontakte_api('isAppUser', data).get('response', 0)
 
     def application_auth(self):
-        required_params = ('is_app_user', 'viewer_id', 'access_token', 'api_id', )
+        required_params = ('is_app_user', 'viewer_id', 'access_token',
+                           'api_id')
 
         for param in required_params:
             if not param in self.request.REQUEST:
-                return (False, None,)
+                return (False, None)
 
         auth_key = self.request.REQUEST.get('auth_key')
 
         # Verify signature, if present
         if auth_key:
-            check_key = md5(self.request.REQUEST.get('api_id') + '_' + self.request.REQUEST.get('viewer_id') + '_' + \
-                            USE_APP_AUTH['key']).hexdigest()
-            if check_key != auth_key:
-                raise('VKontakte authentication failed: invalid auth key')
+            check_key = md5('_'.join([self.request.REQUEST.get('api_id'),
+                                  self.request.REQUEST.get('viewer_id'),
+                                  USE_APP_AUTH['key']])).hexdigest()
 
-        access_token = self.request.REQUEST.get('access_token')
+            if check_key != auth_key:
+                raise ValueError('VKontakte authentication failed: invalid ' \
+                                 'auth key')
 
         user_check = USE_APP_AUTH.get('user_mode', 0)
+        user_id = self.request.REQUEST.get('viewer_id')
 
         if user_check:
-            is_user = self.request.REQUEST.get('is_app_user') if user_check == 1 else self.is_app_user(access_token)
+            is_user = self.request.REQUEST.get('is_app_user') \
+                        if user_check == 1 else self.is_app_user(user_id)
 
             if not int(is_user):
-                return (True, None,)
+                return (True, None)
 
-        data = self.user_data(access_token)
-        data['user_id'] = self.request.REQUEST.get('viewer_id')
-        data['access_token'] = access_token
-        data['secret'] = self.request.REQUEST.get('secret')
+        data = {'response': self.user_profile(user_id), 'user_id': user_id}
 
-        return (True, authenticate(**{'response': data, self.AUTH_BACKEND.name: True}))
+        return (True, authenticate(**{
+            'response': data, self.AUTH_BACKEND.name: True
+        }))
+
+
+def _api_get_val_fun(name, conf):
+    if USE_APP_AUTH:
+        return USE_APP_AUTH.get(name)
+    else:
+        return setting(conf)
 
 
 def vkontakte_api(method, data):
-    """ Calls VKontakte OpenAPI method
-        http://vkontakte.ru/apiclub, 
+    """Calls VKontakte OpenAPI method
+        http://vkontakte.ru/apiclub,
         http://vkontakte.ru/pages.php?o=-1&p=%C2%FB%EF%EE%EB%ED%E5%ED%E8%E5%20%E7%E0%EF%F0%EE%F1%EE%E2%20%EA%20API
     """
 
+    # We need to perform server-side call if no access_token
+    if not 'access_token' in data:
+        if not 'v' in data:
+            data['v'] = VKONTAKTE_API_VERSION
+
+        if not 'api_id' in data:
+            data['api_id'] = _api_get_val_fun('id', 'VKONTAKTE_APP_ID')
+
+        data['method'] = method
+        data['format'] = 'json'
+
+        url = VKONTAKTE_SERVER_API_URL
+        secret = _api_get_val_fun('key', 'VKONTAKTE_APP_SECRET')
+
+        param_list = sorted(list(item + '=' + data[item] for item in data))
+        data['sig'] = md5(''.join(param_list) + secret).hexdigest()
+    else:
+        url = VKONTAKTE_API_URL + method
+
     params = urlencode(data)
-    request = Request(VKONTAKTE_API_URL + method + '?' + params)
+    url += '?' + params
     try:
-        return simplejson.loads(urlopen(request).read())
+        return simplejson.load(urlopen(url))
     except (TypeError, KeyError, IOError, ValueError, IndexError):
+        log('error', 'Could not load data from VKontakte.',
+            exc_info=True, extra=dict(data=data))
         return None
-        
+
+
 # Backend definition
 BACKENDS = {
     'vkontakte': VKontakteAuth,
     'vkontakte-oauth2': VKontakteOAuth2
 }
-    

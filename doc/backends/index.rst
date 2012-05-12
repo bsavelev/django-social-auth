@@ -8,7 +8,18 @@ Contents:
 
    openid
    oauth
-   google
    twitter
    facebook
+   google
    linkedin
+   github
+   bitbucket
+   dropbox
+   flickr
+   browserid
+   instagram
+   vkontakte
+   live
+   skyrock
+   yahoo
+   evernote

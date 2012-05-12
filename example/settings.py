@@ -1,5 +1,11 @@
 from os.path import abspath, dirname, basename, join
 
+try:
+    import social_auth
+except ImportError:
+    import sys
+    sys.path.insert(0, "..")
+
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
@@ -69,14 +75,31 @@ AUTHENTICATION_BACKENDS = (
     'social_auth.backends.google.GoogleBackend',
     'social_auth.backends.yahoo.YahooBackend',
     'social_auth.backends.contrib.linkedin.LinkedinBackend',
+    'social_auth.backends.contrib.skyrock.SkyrockBackend',
+    'social_auth.backends.contrib.flickr.FlickrBackend',
+    'social_auth.backends.contrib.instagram.InstagramBackend',
+    'social_auth.backends.contrib.github.GithubBackend',
+    'social_auth.backends.contrib.yandex.YandexBackend',
+    'social_auth.backends.contrib.yahoo.YahooOAuthBackend',
     'social_auth.backends.OpenIDBackend',
     'social_auth.backends.contrib.livejournal.LiveJournalBackend',
+    'social_auth.backends.browserid.BrowserIDBackend',
     'social_auth.backends.contrib.vkontakte.VKontakteBackend',
-    'social_auth.backends.contrib.yandex.YandexBackend',
+    'social_auth.backends.contrib.yandex.YandexOAuth2Backend',
+    'social_auth.backends.contrib.yandex.YaruBackend',
     'social_auth.backends.contrib.odnoklassniki.OdnoklassnikiBackend',
     'social_auth.backends.contrib.vkontakte.VKontakteOAuth2Backend',
     'social_auth.backends.contrib.mailru.MailruBackend',
     'django.contrib.auth.backends.ModelBackend',
+)
+
+TEMPLATE_CONTEXT_PROCESSORS = (
+    'django.contrib.auth.context_processors.auth',
+    'django.core.context_processors.debug',
+    'django.core.context_processors.i18n',
+    'django.core.context_processors.media',
+    'django.contrib.messages.context_processors.messages',
+    'social_auth.context_processors.social_auth_by_type_backends',
 )
 
 LOGIN_REDIRECT_URL = '/'
