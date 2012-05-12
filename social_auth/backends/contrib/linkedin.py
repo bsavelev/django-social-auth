@@ -9,6 +9,7 @@ from xml.parsers.expat import ExpatError
 from social_auth.utils import setting
 from social_auth.backends import ConsumerBasedOAuth, OAuthBackend, USERNAME
 from social_auth.backends.exceptions import AuthCanceled, AuthUnknownError
+from django.conf import settings
 
 
 LINKEDIN_SERVER = 'linkedin.com'
