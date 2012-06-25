@@ -165,6 +165,12 @@ Configuration
 
     SOCIAL_AUTH_EXTRA_DATA = False
 
+- The update_user_details pipeline processor will set certain fields on user
+  objects, such as ``email``. Set this to a list of fields you only want to
+  set for newly created users:
+
+    SOCIAL_AUTH_PROTECTED_USER_FIELDS = ['email',]
+
   Also more extra values will be stored if defined, details about this setting
   are listed below on OpenId and OAuth sections.
 
@@ -284,6 +290,12 @@ Configuration
   define this setting::
 
     SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
+
+- The name of the last backend used to login is stored as a string in the
+  session under the key ``social_auth_last_login_backend``, the key can be
+  customized by defining this setting::
+
+    SOCIAL_AUTH_LAST_LOGIN = 'social_auth_last_login_backend'
 
 Some settings can be tweak by backend by adding the backend name prefix (all
 uppercase and replace ``-`` with ``_``), here's the supported settings so far::

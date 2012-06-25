@@ -27,7 +27,7 @@ class UserSocialAuth(models.Model):
     user = models.ForeignKey(User, related_name='social_auth')
     provider = models.CharField(max_length=32)
     uid = models.CharField(max_length=255)
-    extra_data = JSONField(blank=True)
+    extra_data = JSONField(default='{}')
 
     class Meta:
         """Meta data"""
@@ -35,7 +35,7 @@ class UserSocialAuth(models.Model):
 
     def __unicode__(self):
         """Return associated user unicode representation"""
-        return unicode(self.user)
+        return u'%s - %s' % (unicode(self.user), self.provider.title())
 
     @property
     def tokens(self):

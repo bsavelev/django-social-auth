@@ -45,7 +45,7 @@ class FacebookBackend(OAuthBackend):
 
     def get_user_details(self, response):
         """Return user details from Facebook account"""
-        return {USERNAME: response.get('username'),
+        return {USERNAME: response.get('username', response.get('name')),
                 'email': response.get('email', ''),
                 'fullname': response.get('name', ''),
                 'first_name': response.get('first_name', ''),
@@ -105,7 +105,7 @@ class FacebookAuth(BaseOAuth2):
 
             access_token = response['access_token'][0]
             if 'expires' in response:
-                    expires = response['expires'][0]
+                expires = response['expires'][0]
 
         if 'signed_request' in self.data:
             response = load_signed_request(self.data.get('signed_request'))
@@ -135,7 +135,7 @@ class FacebookAuth(BaseOAuth2):
             # expires will not be part of response if offline access
             # premission was requested
             if expires:
-                data['expires'] = response['expires'][0]
+                data['expires'] = expires
 
             kwargs.update({'auth': self,
                            'response': data,

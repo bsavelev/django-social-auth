@@ -280,6 +280,12 @@ Configuration
   Also more extra values will be stored if defined, details about this setting
   are listed below on OpenId and OAuth sections.
 
+- The update_user_details pipeline processor will set certain fields on user
+  objects, such as ``email``. Set this to a list of fields you only want to 
+  set for newly created users:
+
+    SOCIAL_AUTH_PROTECTED_USER_FIELDS = ['email',]
+
   Session expiration time is an special value, it's recommended to define::
 
     SOCIAL_AUTH_EXPIRATION = 'expires'
@@ -396,6 +402,12 @@ Configuration
   define this setting::
 
     SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
+
+- The name of the last backend used to login is stored as a string in the
+  session under the key ``social_auth_last_login_backend``, the key can be
+  customized by defining this setting::
+
+    SOCIAL_AUTH_LAST_LOGIN = 'social_auth_last_login_backend'
 
 
 Some settings can be tweak by backend by adding the backend name prefix (all
@@ -928,6 +940,10 @@ Instagram uses OAuth v2 for Authentication
       INSTAGRAM_CLIENT_ID = ''
       INSTAGRAM_CLIENT_SECRET = ''
 
+- extra scopes can be defined by using::
+
+    INSTAGRAM_AUTH_EXTRA_ARGUMENTS = {'scope': 'likes comments relationships'}
+
 .. note::
 
     Instagram only allows one callback url so you'll have to change your urls.py to
@@ -1018,6 +1034,10 @@ Evernote OAuth 1.0 workflow.
 
       EVERNOTE_CONSUMER_KEY = ''
       EVERNOTE_CONSUMER_SECRET = ''
+
+- To test in the sandbox add to settings::
+
+      EVERNOTE_DEBUG = True
 
 Yandex OAuth and OpenID
 ^^^^^^^^^^^^^^^^^^^^^^^
